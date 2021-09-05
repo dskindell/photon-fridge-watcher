@@ -22,12 +22,10 @@ Thermistor *thermistor;
 
 void setup()
 {
-    //pinMode(A0, INPUT);
-    pinMode(A1, INPUT);
-    //pinMode(A2, INPUT);
     //Particle.subscribe("Button_Ini2", Button);
 
-    thermistor = new Thermistor(A0,
+    pinMode(A0, INPUT); // Photoresistor
+    thermistor = new Thermistor(A1,
         THERMISTOR_SERIES_RESISTANCE,
         THERMISTOR_NOMINAL_RESISTANCE,
         THERMISTOR_NOMINAL_TEMPERATURE,

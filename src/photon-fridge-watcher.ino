@@ -11,21 +11,26 @@ const int THERMISTOR_BETA_COEFFICIENT = 3380;
 const int THERMISTOR_SAMPLE_SIZE = 5;
 const int THERMISTOR_SAMPLE_DELAY_MS = 20;
 
-const unsigned int TEMP_SAMPLE_PERIOD_SECONDS = 10;
+const unsigned int TEMP_SAMPLE_PERIOD_SECONDS = 30;
 
-float Photo;
-boolean doorOpen = false;
-unsigned int count = 0;
-int Button_pressed = 0;
+const unsigned int DOOR_OPEN_BUZZER_DELAY_SECONDS = 10;
 
+float photoresistor;
 Thermistor *thermistor;
+
+boolean doorOpen = false;
+boolean doorAlarm = false;
+unsigned int doorOpenCount = 0;
+
+unsigned int count = 0;
 
 void setup()
 {
-    //Particle.subscribe("Button_Ini2", Button);
+    pinMode(D0, OUTPUT); // Buzzer
+    digitalWrite(D0, HIGH);
 
-    pinMode(A0, INPUT); // Photoresistor
-    thermistor = new Thermistor(A1,
+    pinMode(A1, INPUT); // Photoresistor
+    thermistor = new Thermistor(A0,
         THERMISTOR_SERIES_RESISTANCE,
         THERMISTOR_NOMINAL_RESISTANCE,
         THERMISTOR_NOMINAL_TEMPERATURE,
@@ -34,59 +39,39 @@ void setup()
         THERMISTOR_SAMPLE_DELAY_MS);
 }
 
-void Button(const char *event, const char *data)
-{
-    Button_pressed = 1;
-}
-
 void loop()
 {
-    Photo = analogRead(A1);
+    photoresistor = analogRead(A1);
 
-/*
-    Therm1 = analogRead(A0);
-    // https://www.electronicwings.com/particle/thermistor-interfacing-with-particle-photon
-    OutputVoltage = (Therm1 / MAX_ANALOG_READ_AT_3_3_V) * MAX_VOLTAGE;
-    ThermistorResistance = ((MAX_VOLTAGE * THERMISTOR_SERIES_RESISTANCE) / OutputVoltage) - THERMISTOR_SERIES_RESITANCE;
-    // Steinhart-Hart Thermistor Equation:
-    // Temperature in Kelvin = 1 / (A + B[ln(R)] + C[ln(R)]^3)
-    // where A = 0.001129148, B = 0.000234125 and C = 8.76741*10^-8
-    ThermResLn = log(ThermistorResistance);
-    TemperatureK = (1.0 / (0.001129148 + (0.000234125 * ThermResLn) + (0.0000000876741 * ThermResLn * ThermResLn * ThermResLn)));
-    TemperatureF = (TemperatureK - 273.15) * 9.0 / 5.0 + 32.0; // Convert temp in K to F
-*/
-
-    if (Photo <= 1500.0 and doorOpen == false) // Photoresitor detectect door opening
+    if (photoresistor <= 1500.0 and !doorOpen) // Photoresitor detectect door opening
     {
         doorOpen = true;
-        Particle.publish("DoorOn", "Open");
+        doorOpenCount = millis();
+        Particle.publish("Door", "Open");
     } //pubilsh the event 1 time
 
-    if (Photo >= 1510.0 and doorOpen == true) // Photoresitor detectect door closing
+    if (photoresistor >= 1510.0 and doorOpen) // Photoresitor detectect door closing
     {
         doorOpen = false;
-        Particle.publish("DoorOff", "Closed");
+        doorOpenCount = millis();
+        Particle.publish("Door", "Closed");
     } // Publish the event 1 time
+
+    if (doorOpen and millis() >= (doorOpenCount + 1000 * DOOR_OPEN_BUZZER_DELAY_SECONDS)) {
+        if (!doorAlarm) {
+            doorAlarm = true;
+            Particle.publish("DoorAlarm");
+            //digitalWrite(D0, LOW);
+        }
+    } else if (doorAlarm) {
+        doorAlarm = false;
+        digitalWrite(D0, HIGH);
+    } // Toggle door-open buzzer
 
     if (millis() >= (count + 1000 * TEMP_SAMPLE_PERIOD_SECONDS)) // If statment that occuring every X seconds
     {
         count = millis(); // Reset the value of count
-        Particle.publish("Photo", String::format("%.1f", Photo));
-        Particle.publish("Temperature_T1", String(thermistor->readTempF()));
+        //Particle.publish("Photo", String::format("%.1f", photoresistor));
+        Particle.publish("TemperatureF_T1", String(thermistor->readTempF()));
     } // publish temeperature
-
-/*
-    if ((TemperatureF2 <= 40.0) and (Button_pressed == 1)) // If statemnt that says when the temperature of the sensor 2 has a good temeprature
-    {
-        Particle.publish("Beverage", "Ready"); // Publish the envent that says that the sesor has now a cold temperaure
-        delay(10);
-        Button_pressed = 0; // Reset the cycle for the button
-    }
-
-    if ((Button_pressed == 1) and (millis() >= (count2 + 60000))) // When button was presed, publish the temperautre of the sensor.
-    {
-        count2 = millis();
-        Particle.publish("Temperature_T2", String(TemperatureF2));
-    }
-*/
 }

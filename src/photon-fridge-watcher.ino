@@ -1,19 +1,15 @@
-#include <math.h> //photon 01 code
 #include <photon-thermistor.h> // https://github.com/kegnet/photon-thermistor
-
-const float MAX_ANALOG_READ_AT_3_3_V = 4095.0;
-const float MAX_VOLTAGE = 3.3;
 
 const int THERMISTOR_SERIES_RESISTANCE = 10000;
 const int THERMISTOR_NOMINAL_RESISTANCE = 10000;
 const int THERMISTOR_NOMINAL_TEMPERATURE = 25;
-const int THERMISTOR_BETA_COEFFICIENT = 3380;
+const int THERMISTOR_BETA_COEFFICIENT = 3984;
 const int THERMISTOR_SAMPLE_SIZE = 5;
 const int THERMISTOR_SAMPLE_DELAY_MS = 20;
 
-const unsigned int TEMP_SAMPLE_PERIOD_SECONDS = 30;
-
-const unsigned int DOOR_OPEN_BUZZER_DELAY_SECONDS = 10;
+const unsigned int TEMP_SAMPLE_PERIOD_S = 60;
+const unsigned int DOOR_OPEN_BUZZER_DELAY_S = 120;
+const unsigned int DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = 30;
 
 float photoresistor;
 Thermistor *thermistor;
@@ -21,6 +17,8 @@ Thermistor *thermistor;
 boolean doorOpen = false;
 boolean doorAlarm = false;
 unsigned int doorOpenCount = 0;
+unsigned int doorOpenRepeatCount = 0;
+unsigned int doorOpenSeconds = 0;
 
 unsigned int count = 0;
 
@@ -43,35 +41,50 @@ void loop()
 {
     photoresistor = analogRead(A1);
 
-    if (photoresistor <= 1500.0 and !doorOpen) // Photoresitor detectect door opening
+    // Photoresitor detectect door opening
+    if (photoresistor <= 1500.0 and !doorOpen)
     {
         doorOpen = true;
         doorOpenCount = millis();
         Particle.publish("Door", "Open");
-    } //pubilsh the event 1 time
+    }
 
-    if (photoresistor >= 1510.0 and doorOpen) // Photoresitor detectect door closing
+    // Photoresitor detectect door closing
+    if (photoresistor >= 1510.0 and doorOpen)
     {
         doorOpen = false;
         doorOpenCount = millis();
         Particle.publish("Door", "Closed");
-    } // Publish the event 1 time
+    }
 
-    if (doorOpen and millis() >= (doorOpenCount + 1000 * DOOR_OPEN_BUZZER_DELAY_SECONDS)) {
+    // Toggle alarm when fridge door has been left open for too long
+    if (doorOpen and millis() >= (doorOpenCount + 1000 * DOOR_OPEN_BUZZER_DELAY_S)) {
         if (!doorAlarm) {
             doorAlarm = true;
-            Particle.publish("DoorAlarm");
             //digitalWrite(D0, LOW);
+            NotifyDoorAlarm();
         }
     } else if (doorAlarm) {
         doorAlarm = false;
         digitalWrite(D0, HIGH);
-    } // Toggle door-open buzzer
+    }
 
-    if (millis() >= (count + 1000 * TEMP_SAMPLE_PERIOD_SECONDS)) // If statment that occuring every X seconds
+    // Repeat notification if door continues to remain open after initial alarm
+    if (doorAlarm and millis() >= (doorOpenRepeatCount + 1000 * DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S)) {
+        NotifyDoorAlarm();
+    }
+
+    // Publish temperature data on a regular period
+    if (millis() >= (count + 1000 * TEMP_SAMPLE_PERIOD_S))
     {
         count = millis(); // Reset the value of count
-        //Particle.publish("Photo", String::format("%.1f", photoresistor));
-        Particle.publish("TemperatureF_T1", String(thermistor->readTempF()));
-    } // publish temeperature
+        Particle.publish("TemperatureF_T1", String(thermistor->readTempF()), PRIVATE);
+    }
+}
+
+void NotifyDoorAlarm() {
+    doorOpenRepeatCount = millis();
+    doorOpenSeconds = (millis() - doorOpenCount) / 1000;
+    //Particle.publish("DoorAlarm", String(doorOpenSeconds));
+    Particle.publish("pushbullet", String(doorOpenSeconds), 60, PRIVATE);
 }

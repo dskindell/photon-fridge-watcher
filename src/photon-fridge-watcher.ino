@@ -9,9 +9,9 @@ const double INIT_WARN_TEMPERATURE_THRESHOLD = 39.0;
 double WARN_TEMPERATURE_THRESHOLD = INIT_WARN_TEMPERATURE_THRESHOLD;
 int setWarnTempThreshold(String input) { WARN_TEMPERATURE_THRESHOLD = input.toFloat(); return 0; }
 
-const float INIT_PHOTO_RESISTOR_OPEN_THRESHOLD = 1500.0;
-float PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
-int setLightLevelThreshold(String input) { PHOTO_RESISTOR_OPEN_THRESHOLD = input.toFloat(); return 0; }
+const int32_t INIT_PHOTO_RESISTOR_OPEN_THRESHOLD = 1500.0;
+int32_t PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
+int setLightLevelThreshold(String input) { PHOTO_RESISTOR_OPEN_THRESHOLD = input.toInt(); return 0; }
 
 const unsigned int INIT_DOOR_OPEN_BUZZER_DELAY_S = 240;
 unsigned int DOOR_OPEN_BUZZER_DELAY_S = INIT_DOOR_OPEN_BUZZER_DELAY_S;
@@ -49,7 +49,7 @@ const int THERMISTOR_BETA_COEFFICIENT = 3435;
 const int THERMISTOR_SAMPLE_SIZE = 5;
 const int THERMISTOR_SAMPLE_DELAY_MS = 20;
 
-float photoresistor;
+int32_t photoresistor;
 Thermistor *thermistor;
 double temperature;
 
@@ -105,6 +105,10 @@ void setup()
     Particle.function("setDoorNotificationRepeatDelay", setDoorNotificationRepeatDelay);
     Particle.function("setToggleBuzzer", setBuzzerToggle);
     Particle.function("resetSettings", resetSettings);
+
+    Particle.variable("photoresistor", photoresistor);
+    Particle.variable("temperature", temperature);
+    Particle.variable("doorOpen", doorOpen);
 }
 
 void loop()
@@ -145,7 +149,7 @@ void UpdateDoorState()
     }
 
     // Photoresitor detectect door closing
-    if (photoresistor >= PHOTO_RESISTOR_OPEN_THRESHOLD + 10.0 and doorOpen)
+    if (photoresistor >= PHOTO_RESISTOR_OPEN_THRESHOLD + 10 and doorOpen)
     {
         doorOpen = false;
         lastDoorChangeTime = millis();

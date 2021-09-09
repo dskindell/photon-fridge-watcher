@@ -1,9 +1,9 @@
 #include <photon-thermistor.h> // https://github.com/kegnet/photon-thermistor
 #include <clickButton.h> // https://github.com/pkourany/clickButton
 
-const unsigned int INIT_TEMP_SAMPLE_PERIOD_S = 300;
-unsigned int TEMP_SAMPLE_PERIOD_S = INIT_TEMP_SAMPLE_PERIOD_S;
-int setTempSamplePeriod(String input) { TEMP_SAMPLE_PERIOD_S = input.toInt(); return 0; }
+const unsigned int INIT_TEMPERATURE_SAMPLE_PERIOD_S = 300;
+unsigned int TEMPERATURE_SAMPLE_PERIOD_S = INIT_TEMPERATURE_SAMPLE_PERIOD_S;
+int setTempSamplePeriod(String input) { TEMPERATURE_SAMPLE_PERIOD_S = input.toInt(); return 0; }
 
 const double INIT_WARN_TEMPERATURE_THRESHOLD = 39.0;
 double WARN_TEMPERATURE_THRESHOLD = INIT_WARN_TEMPERATURE_THRESHOLD;
@@ -27,7 +27,7 @@ int setDoorNotificationRepeatDelay(String input) { DOOR_OPEN_NOTIFICATION_REPEAT
 
 int resetSettings(String input) 
 {
-    TEMP_SAMPLE_PERIOD_S = INIT_TEMP_SAMPLE_PERIOD_S;
+    TEMPERATURE_SAMPLE_PERIOD_S = INIT_TEMPERATURE_SAMPLE_PERIOD_S;
     WARN_TEMPERATURE_THRESHOLD = INIT_WARN_TEMPERATURE_THRESHOLD;
     PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
     DOOR_OPEN_BUZZER_DELAY_S = INIT_DOOR_OPEN_BUZZER_DELAY_S;
@@ -230,7 +230,7 @@ void UpdateBuzzerState()
 void PublishTemperature()
 {
     // Publish temperature data on a regular period
-    if (millis() >= (lastPublishTempTime + 1000 * TEMP_SAMPLE_PERIOD_S))
+    if (millis() >= (lastPublishTempTime + 1000 * TEMPERATURE_SAMPLE_PERIOD_S))
     {
         lastPublishTempTime = millis();
         temperature = thermistor->readTempF();

@@ -75,21 +75,9 @@ void loop()
 
     UpdateLEDState();
 
-    PublishTemperature();
-}
+    UpdateBuzzerState();
 
-void UpdateLEDState()
-{
-    // Light LED if buzzer is disabled OR if door alarm is active
-    if (!buzzerToggle or
-        doorAlarm)
-    {
-        digitalWrite(LED_PIN, HIGH);
-    }
-    else
-    {
-        digitalWrite(LED_PIN, LOW);
-    }
+    PublishTemperature();
 }
 
 void UpdateBuzzerToggle()
@@ -151,7 +139,24 @@ void UpdateDoorAlarm()
     {
         PublishDoorAlarm();
     }
+}
 
+void UpdateLEDState()
+{
+    // Light LED if buzzer is disabled OR if door alarm is active
+    if (!buzzerToggle or
+        doorAlarm)
+    {
+        digitalWrite(LED_PIN, HIGH);
+    }
+    else
+    {
+        digitalWrite(LED_PIN, LOW);
+    }
+}
+
+void UpdateBuzzerState()
+{
     // Sound buzzer alarm (if enabled)
     if (doorAlarm and buzzerToggle)
     {

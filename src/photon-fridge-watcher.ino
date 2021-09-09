@@ -1,15 +1,40 @@
 #include <photon-thermistor.h> // https://github.com/kegnet/photon-thermistor
 #include <clickButton.h> // https://github.com/pkourany/clickButton
 
-const unsigned int TEMP_SAMPLE_PERIOD_S = 300;
-const double WARN_TEMPERATURE_THRESHOLD_F = 39.0;
+const unsigned int INIT_TEMP_SAMPLE_PERIOD_S = 300;
+unsigned int TEMP_SAMPLE_PERIOD_S = INIT_TEMP_SAMPLE_PERIOD_S;
+int setTempSamplePeriod(String input) { TEMP_SAMPLE_PERIOD_S = input.toInt(); return 0; }
 
-const float PHOTO_RESISTOR_OPEN_THRESHOLD = 1500.0;
-const float PHOTO_RESISTOR_CLOSE_THRESHOLD = PHOTO_RESISTOR_OPEN_THRESHOLD + 10.0;
+const double INIT_WARN_TEMPERATURE_THRESHOLD = 39.0;
+double WARN_TEMPERATURE_THRESHOLD = INIT_WARN_TEMPERATURE_THRESHOLD;
+int setWarnTempThreshold(String input) { WARN_TEMPERATURE_THRESHOLD = input.toFloat(); return 0; }
 
-const unsigned int DOOR_OPEN_BUZZER_DELAY_S = 240;
-const unsigned int DOOR_OPEN_NOTIFICATION_DELAY_S = 180;
-const unsigned int DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = 60;
+const float INIT_PHOTO_RESISTOR_OPEN_THRESHOLD = 1500.0;
+float PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
+int setLightLevelThreshold(String input) { PHOTO_RESISTOR_OPEN_THRESHOLD = input.toFloat(); return 0; }
+
+const unsigned int INIT_DOOR_OPEN_BUZZER_DELAY_S = 240;
+unsigned int DOOR_OPEN_BUZZER_DELAY_S = INIT_DOOR_OPEN_BUZZER_DELAY_S;
+int setDoorBuzzerDelay(String input) { DOOR_OPEN_BUZZER_DELAY_S = input.toInt(); return 0; }
+
+const unsigned int INIT_DOOR_OPEN_NOTIFICATION_DELAY_S = 180;
+unsigned int DOOR_OPEN_NOTIFICATION_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_DELAY_S;
+int setDoorNotificationDelay(String input) { DOOR_OPEN_NOTIFICATION_DELAY_S = input.toInt(); return 0; }
+
+const unsigned int INIT_DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = 60;
+unsigned int DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S;
+int setDoorNotificationRepeatDelay(String input) { DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = input.toInt(); return 0; }
+
+int resetSettings(String input) 
+{
+    TEMP_SAMPLE_PERIOD_S = INIT_TEMP_SAMPLE_PERIOD_S;
+    WARN_TEMPERATURE_THRESHOLD = INIT_WARN_TEMPERATURE_THRESHOLD;
+    PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
+    DOOR_OPEN_BUZZER_DELAY_S = INIT_DOOR_OPEN_BUZZER_DELAY_S;
+    DOOR_OPEN_NOTIFICATION_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_DELAY_S;
+    DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S;
+    return 0;
+}
 
 const uint16_t BUZZER_PIN = D0;
 const uint16_t BUTTON_PIN = D5;
@@ -42,6 +67,12 @@ unsigned int doorOpenSeconds = 0;
 ClickButton *button;
 boolean buzzerToggle = false;
 
+int setBuzzerToggle(String input)
+{
+    buzzerToggle = input.toInt() != 0 ? true : false;
+    return 0;
+}
+
 void setup()
 {
     // LED
@@ -65,6 +96,15 @@ void setup()
                                 THERMISTOR_BETA_COEFFICIENT,
                                 THERMISTOR_SAMPLE_SIZE,
                                 THERMISTOR_SAMPLE_DELAY_MS);
+
+    Particle.function("setTempSamplePeriod", setTempSamplePeriod);
+    Particle.function("setWarnTempThreshold", setWarnTempThreshold);
+    Particle.function("setLightLevelThreshold", setLightLevelThreshold);
+    Particle.function("setDoorBuzzerDelay", setDoorBuzzerDelay);
+    Particle.function("setDoorNotificationDelay", setDoorNotificationDelay);
+    Particle.function("setDoorNotificationRepeatDelay", setDoorNotificationRepeatDelay);
+    Particle.function("setToggleBuzzer", setBuzzerToggle);
+    Particle.function("resetSettings", resetSettings);
 }
 
 void loop()
@@ -105,7 +145,7 @@ void UpdateDoorState()
     }
 
     // Photoresitor detectect door closing
-    if (photoresistor >= PHOTO_RESISTOR_CLOSE_THRESHOLD and doorOpen)
+    if (photoresistor >= PHOTO_RESISTOR_OPEN_THRESHOLD + 10.0 and doorOpen)
     {
         doorOpen = false;
         lastDoorChangeTime = millis();
@@ -193,7 +233,7 @@ void PublishTemperature()
         Particle.publish("FridgeTemperature", String(temperature), PRIVATE);
 
         // Alarm if fridge temp crosses threshold
-        if (temperature > WARN_TEMPERATURE_THRESHOLD_F)
+        if (temperature > WARN_TEMPERATURE_THRESHOLD)
         {
             if (temperature > lastWarnTemp or !warnTempAlarm)
             {
@@ -202,7 +242,7 @@ void PublishTemperature()
                 Particle.publish("FridgeWarnTemp", String::format("%.2lf", temperature), 60, PRIVATE);
             }
         }
-        else if (temperature <= WARN_TEMPERATURE_THRESHOLD_F - 2.0)
+        else if (temperature <= WARN_TEMPERATURE_THRESHOLD - 2.0)
         {
             warnTempAlarm = false;
         }

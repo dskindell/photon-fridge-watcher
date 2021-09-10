@@ -5,9 +5,13 @@ const unsigned int INIT_TEMPERATURE_SAMPLE_PERIOD_S = 300;
 unsigned int TEMPERATURE_SAMPLE_PERIOD_S = INIT_TEMPERATURE_SAMPLE_PERIOD_S;
 int setTempSamplePeriod(String input) { TEMPERATURE_SAMPLE_PERIOD_S = input.toInt(); return 0; }
 
-const double INIT_WARN_TEMPERATURE_THRESHOLD = 39.0;
-double WARN_TEMPERATURE_THRESHOLD = INIT_WARN_TEMPERATURE_THRESHOLD;
-int setWarnTempThreshold(String input) { WARN_TEMPERATURE_THRESHOLD = input.toFloat(); return 0; }
+const double INIT_TEMPERATURE_ALARM_THRESHOLD = 39.0;
+double TEMPERATURE_ALARM_THRESHOLD = INIT_TEMPERATURE_ALARM_THRESHOLD;
+int setTempAlarmThreshold(String input) { TEMPERATURE_ALARM_THRESHOLD = input.toFloat(); return 0; }
+
+const unsigned int INIT_TEMPERATURE_ALARM_DELAY_S = 300;
+unsigned int TEMPERATURE_ALARM_DELAY_S = INIT_TEMPERATURE_ALARM_DELAY_S;
+int setTempAlarmDelay(String input) { TEMPERATURE_ALARM_DELAY_S = input.toInt(); return 0; }
 
 const int32_t INIT_PHOTO_RESISTOR_OPEN_THRESHOLD = 1500.0;
 int32_t PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
@@ -28,7 +32,8 @@ int setDoorNotificationRepeatDelay(String input) { DOOR_OPEN_NOTIFICATION_REPEAT
 int resetSettings(String input) 
 {
     TEMPERATURE_SAMPLE_PERIOD_S = INIT_TEMPERATURE_SAMPLE_PERIOD_S;
-    WARN_TEMPERATURE_THRESHOLD = INIT_WARN_TEMPERATURE_THRESHOLD;
+    TEMPERATURE_ALARM_THRESHOLD = INIT_TEMPERATURE_ALARM_THRESHOLD;
+    TEMPERATURE_ALARM_DELAY_S = INIT_TEMPERATURE_ALARM_DELAY_S;
     PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
     DOOR_OPEN_BUZZER_DELAY_S = INIT_DOOR_OPEN_BUZZER_DELAY_S;
     DOOR_OPEN_NOTIFICATION_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_DELAY_S;
@@ -53,9 +58,10 @@ int32_t photoresistor;
 Thermistor *thermistor;
 double temperature;
 
-boolean warnTempAlarm = false;
-double lastWarnTemp = 0.0;
 unsigned int lastPublishTempTime = 0;
+
+double lastTempAlarm = 0.0;
+unsigned int lastTempAlarmThresholdTime = 0;
 
 boolean doorOpen = false;
 boolean doorBuzzer = false;
@@ -98,7 +104,8 @@ void setup()
                                 THERMISTOR_SAMPLE_DELAY_MS);
 
     Particle.function("setTempSamplePeriod", setTempSamplePeriod);
-    Particle.function("setWarnTempThreshold", setWarnTempThreshold);
+    Particle.function("setTempAlarmThreshold", setTempAlarmThreshold);
+    Particle.function("setTempAlarmDelay", setTempAlarmDelay);
     Particle.function("setLightLevelThreshold", setLightLevelThreshold);
     Particle.function("setDoorBuzzerDelay", setDoorBuzzerDelay);
     Particle.function("setDoorNotificationDelay", setDoorNotificationDelay);
@@ -229,26 +236,33 @@ void UpdateBuzzerState()
 
 void PublishTemperature()
 {
+    temperature = thermistor->readTempF();
+
     // Publish temperature data on a regular period
     if (millis() >= (lastPublishTempTime + 1000 * TEMPERATURE_SAMPLE_PERIOD_S))
     {
         lastPublishTempTime = millis();
-        temperature = thermistor->readTempF();
         Particle.publish("FridgeTemperature", String(temperature), PRIVATE);
+    }
 
-        // Alarm if fridge temp crosses threshold
-        if (temperature > WARN_TEMPERATURE_THRESHOLD)
+    // Alarm if fridge temp crosses threshold
+    if (temperature > TEMPERATURE_ALARM_THRESHOLD)
+    {
+        // If this is the first time the threshold has been crossed, start a delay timer
+        if (lastTempAlarmThresholdTime == (unsigned int)-1)
         {
-            if (temperature > lastWarnTemp or !warnTempAlarm)
-            {
-                warnTempAlarm = true;
-                lastWarnTemp = temperature;
-                Particle.publish("FridgeWarnTemp", String::format("%.2lf", temperature), 60, PRIVATE);
-            }
+            lastTempAlarmThresholdTime = millis();
         }
-        else if (temperature <= WARN_TEMPERATURE_THRESHOLD - 2.0)
+        else if (millis() >= (lastTempAlarmThresholdTime + 1000 * TEMPERATURE_ALARM_DELAY_S) and
+                 (temperature > lastTempAlarm))
         {
-            warnTempAlarm = false;
+            lastTempAlarmThresholdTime = (unsigned int)-1; // Alarm should not trigger more periodically than the delay
+            lastTempAlarm = (temperature > lastTempAlarm ? temperature : lastTempAlarm);
+            Particle.publish("FridgeTempAlarm", String::format("%.2lf", temperature), 60, PRIVATE);
         }
+    }
+    else if (temperature <= TEMPERATURE_ALARM_THRESHOLD - 2.0)
+    {
+        lastTempAlarmThresholdTime = (unsigned int)-1;
     }
 }

@@ -72,3 +72,7 @@ This event is pushed on a regular interval and reports the current temperature r
 
 - [photon-thermistor](https://github.com/kegnet/photon-thermistor)
 - [clickButton](https://github.com/pkourany/clickButton)
+
+## Support
+
+Tested using firmware 3.1.0 on a [Particle Photon](https://store.particle.io/products/photon?_pos=1&_sid=e8e5c88f6&_ss=r)

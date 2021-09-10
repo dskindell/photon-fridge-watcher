@@ -25,10 +25,6 @@ const unsigned int INIT_DOOR_OPEN_NOTIFICATION_DELAY_S = 180;
 unsigned int DOOR_OPEN_NOTIFICATION_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_DELAY_S;
 int setDoorNotificationDelay(String input) { DOOR_OPEN_NOTIFICATION_DELAY_S = input.toInt(); return 0; }
 
-const unsigned int INIT_DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = 60;
-unsigned int DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S;
-int setDoorNotificationRepeatDelay(String input) { DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = input.toInt(); return 0; }
-
 int resetSettings(String input) 
 {
     TEMPERATURE_SAMPLE_PERIOD_S = INIT_TEMPERATURE_SAMPLE_PERIOD_S;
@@ -37,7 +33,6 @@ int resetSettings(String input)
     PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
     DOOR_OPEN_BUZZER_DELAY_S = INIT_DOOR_OPEN_BUZZER_DELAY_S;
     DOOR_OPEN_NOTIFICATION_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_DELAY_S;
-    DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S;
     return 0;
 }
 
@@ -109,70 +104,39 @@ void setup()
     Particle.function("setLightLevelThreshold", setLightLevelThreshold);
     Particle.function("setDoorBuzzerDelay", setDoorBuzzerDelay);
     Particle.function("setDoorNotificationDelay", setDoorNotificationDelay);
-    Particle.function("setDoorNotificationRepeatDelay", setDoorNotificationRepeatDelay);
     Particle.function("setToggleBuzzer", setBuzzerToggle);
     Particle.function("resetSettings", resetSettings);
 
     Particle.variable("photoresistor", photoresistor);
     Particle.variable("temperature", temperature);
+    Particle.variable("buzzerToggle", buzzerToggle);
     Particle.variable("doorOpen", doorOpen);
 }
 
 void loop()
 {
-    UpdateBuzzerToggle();
-
-    UpdateDoorState();
-
-    UpdateDoorAlarm();
-
-    UpdateLEDState();
-
-    UpdateBuzzerState();
-
-    PublishTemperature();
-}
-
-void UpdateBuzzerToggle()
-{
+    // Update sensor data
+    photoresistor = analogRead(PHOTORESISTOR_PIN);
+    temperature = thermistor->readTempF();
     button->Update();
-
     if (button->clicks != 0)
     {
         buzzerToggle = !buzzerToggle;
     }
-}
 
-void UpdateDoorState()
-{
-    photoresistor = analogRead(PHOTORESISTOR_PIN);
-
-    // Photoresitor detectect door opening
+    // Detect if door has been opened
     if (photoresistor <= PHOTO_RESISTOR_OPEN_THRESHOLD and !doorOpen)
     {
         doorOpen = true;
         lastDoorChangeTime = millis();
-        //Particle.publish("FridgeDoor", "Open");
     }
-
-    // Photoresitor detectect door closing
+    // Detect if door has been closed
     if (photoresistor >= PHOTO_RESISTOR_OPEN_THRESHOLD + 10 and doorOpen)
     {
         doorOpen = false;
         lastDoorChangeTime = millis();
-        //Particle.publish("FridgeDoor", "Closed");
     }
-}
 
-void PublishDoorNotification()
-{
-    lastDoorNotificationTime = millis();
-    doorOpenSeconds = (millis() - lastDoorChangeTime) / 1000;
-    Particle.publish("FridgeDoorAlarm", String(doorOpenSeconds), 60, PRIVATE);
-}
-
-void UpdateDoorAlarm()
-{
     // Toggle buzzer when fridge door has been left open for too long
     if (doorOpen and millis() >= (lastDoorChangeTime + 1000 * DOOR_OPEN_BUZZER_DELAY_S))
     {
@@ -185,14 +149,25 @@ void UpdateDoorAlarm()
     {
         doorBuzzer = false;
     }
+    // Sound buzzer alarm (if enabled)
+    if (doorBuzzer and buzzerToggle)
+    {
+        digitalWrite(BUZZER_PIN, HIGH);
+    }
+    else
+    {
+        digitalWrite(BUZZER_PIN, LOW);
+    }
 
-    // Toggle notification when fridge door has been left open for too long
+    // Send notification when fridge door has been left open for too long
     if (doorOpen and millis() >= (lastDoorChangeTime + 1000 * DOOR_OPEN_NOTIFICATION_DELAY_S))
     {
         if (!doorNotification)
         {
             doorNotification = true;
-            PublishDoorNotification();
+            lastDoorNotificationTime = millis();
+            doorOpenSeconds = (millis() - lastDoorChangeTime) / 1000;
+            Particle.publish("FridgeDoorAlarm", String(doorOpenSeconds), 60, PRIVATE);
         }
     }
     else if (doorNotification)
@@ -200,15 +175,6 @@ void UpdateDoorAlarm()
         doorNotification = false;
     }
 
-    // Repeat notification if door continues to remain open after initial alarm
-    if (doorNotification and millis() >= (lastDoorNotificationTime + 1000 * DOOR_OPEN_NOTIFICATION_REPEAT_DELAY_S))
-    {
-        PublishDoorNotification();
-    }
-}
-
-void UpdateLEDState()
-{
     // Light LED if buzzer is disabled OR if door alarm is active
     if (!buzzerToggle or
         doorBuzzer)
@@ -219,24 +185,6 @@ void UpdateLEDState()
     {
         digitalWrite(LED_PIN, LOW);
     }
-}
-
-void UpdateBuzzerState()
-{
-    // Sound buzzer alarm (if enabled)
-    if (doorBuzzer and buzzerToggle)
-    {
-        digitalWrite(BUZZER_PIN, HIGH);
-    }
-    else
-    {
-        digitalWrite(BUZZER_PIN, LOW);
-    }
-}
-
-void PublishTemperature()
-{
-    temperature = thermistor->readTempF();
 
     // Publish temperature data on a regular period
     if (millis() >= (lastPublishTempTime + 1000 * TEMPERATURE_SAMPLE_PERIOD_S))

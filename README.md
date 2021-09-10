@@ -1,35 +1,74 @@
 # photon-fridge-watcher
 
-A Particle project named photon-fridge-watcher
+A Particle Photon project to monitor a fridge or freezer
 
-## Welcome to your project!
+## Features
 
-Every new Particle project is composed of 3 important elements that you'll see have been created in your project directory for photon-fridge-watcher.
+#### Sensors
 
-#### ```/src``` folder:  
-This is the source folder that contains the firmware files for your project. It should *not* be renamed. 
-Anything that is in this folder when you compile your project will be sent to our compile service and compiled into a firmware binary for the Particle device that you have targeted.
+- Photoresistor - Used to monitor when the fridge door is open or closed based on fridge or ambient light
+- Thermistor - Used to monitor the temperature inside the fridge
+- Buzzer - Local alarm that sounds if the fridge door is left open for too long
+- Button - Used to toggle the buzzer
+- LED - LED that lights if the user disables the buzzer (via the button) OR if the fridge door has been left open for too long
 
-If your application contains multiple files, they should all be included in the `src` folder. If your firmware depends on Particle libraries, those dependencies are specified in the `project.properties` file referenced below.
 
-#### ```.ino``` file:
-This file is the firmware that will run as the primary application on your Particle device. It contains a `setup()` and `loop()` function, and can be written in Wiring or C/C++. For more information about using the Particle firmware API to create firmware for your Particle device, refer to the [Firmware Reference](https://docs.particle.io/reference/firmware/) section of the Particle documentation.
+### Monitor Fridge Door
 
-#### ```project.properties``` file:  
-This is the file that specifies the name and version number of the libraries that your project depends on. Dependencies are added automatically to your `project.properties` file when you add a library to a project using the `particle library add` command in the CLI or add a library in the Desktop IDE.
+A Photoresistor is used to monitor the ambient light in the fridge. If the door is opened, an intern timer will start. If the door is kept open for a configured amount of time, a buzzer will sound and an event (`FridgeDoorAlarm`) will be published.
 
-## Adding additional files to your project
+#### Buzzer
 
-#### Projects with multiple sources
-If you would like add additional files to your application, they should be added to the `/src` folder. All files in the `/src` folder will be sent to the Particle Cloud to produce a compiled binary.
+The buzzer sounds if the door has been left open **continously** for a configured length of time.
 
-#### Projects with external libraries
-If your project includes a library that has not been registered in the Particle libraries system, you should create a new folder named `/lib/<libraryname>/src` under `/<project dir>` and add the `.h`, `.cpp` & `library.properties` files for your library there. Read the [Firmware Libraries guide](https://docs.particle.io/guide/tools-and-features/libraries/) for more details on how to develop libraries. Note that all contents of the `/lib` folder and subfolders will also be sent to the Cloud for compilation.
+- The buzzer can be silenced by pressing the button
+- A warning LED will be visable anytime the the buzzer has been disabled letting the user know the buzzer will not sound if the fridge door has been left open
+- The buzzer will continue until the fridge door is closed (or the button is used to disable the buzzer)
 
-## Compiling your project
+#### Event ```FridgeDoorAlarm```
 
-When you're ready to compile your project, make sure you have the correct Particle device target selected and run `particle compile <platform>` in the CLI or click the Compile button in the Desktop IDE. The following files in your project folder will be sent to the compile service:
+This event is published if the door has been left open **continously** for a configured length of time. The published event can be used to trigger notifications such as IFTTT applets.
 
-- Everything in the `/src` folder, including your `.ino` application file
-- The `project.properties` file for your project
-- Any libraries stored under `lib/<libraryname>/src`
+*Note: The button does **NOT** disable the notification*
+
+**Data:** The event is published with a value that represents how many seconds the fridge door has been left open
+
+
+### Monitor Fridge Temperature
+
+A thermistor is used to track temperature inside the fridge and send notifications if the temperature exceeds a configured threshold after a configured amount of time.
+
+#### Event ```FridgeTempAlarm```
+
+This event is published when the fridge temperature has reached a configured threshold and has continued to say above this threshold for a **continous** length of time.
+
+**Data:** The event is published with a `int` value that represents the current temperature reading (in F)
+
+#### Event ```FridgeTemperature```
+
+This event is pushed on a regular interval and reports the current temperature reading from the thermistor at that time (in F).
+
+**Data:** The event is pushed with a `float` value that represents the current temperature reading (in F)
+
+## Functions
+
+- `setTempSamplePeriod(int)` - Configure delay (in seconds) between publishing the `FridgeTemperature` event (*Default:* 300)
+- `setTempAlarmThreshold(float)` -  Configure the temperature threshold (in F) that will publish the `FridgeTempAlarm` event (*Default:* 39.0)
+- `setTempAlarmDelay(int)` - Configure the length of time (in seconds) the fridge temperature must remain above the threshold before publishing the `FridgeTempAlarm` event (*Default:* 300)
+- `setLightLevelThreshold(int)` - Configure light level threshold (voltage reading between 0-4095) that determines if the fridge door is open (higher value means more sensitive) (*Default:* 1500)
+- `setDoorBuzzerDelay(int)` - Configure the length of time (in seconds) the fridge door must remain *continously* open before the buzzer alarm is triggerd (*Default:* 240)
+- `setDoorNotificationDelay(int)` - Configure the length of time (in seconds) the fridge door must remain *continously* open before the `FridgeDoorAlarm` event is published. This also configures the time between re-sending the event if the fridge door remains open (*Default:* 180)
+- `setToggleBuzzer(int)` - Toggles the buzzer to `0 => off` or `!0 => on`
+- `resetSettings(void)` - Reset all thresholds, delays, etc... back to defaults
+
+## Variables
+
+- `photoresistor` - The current analog voltage reading from the photoresistor (0-4095) where a lower values denotes a high light level
+- `temperature` - The current temperature (in F) reading inside the fridge
+- `buzzerToggle` - `true` iff the buzzer is currently enabled, `false` otherwise
+- `doorOpen` - `true` iff the fridge door is currently detected as 'open', `false` otherwise
+
+## Libraries
+
+- [photon-thermistor](https://github.com/kegnet/photon-thermistor)
+- [clickButton](https://github.com/pkourany/clickButton)

@@ -53,7 +53,7 @@ This event is pushed on a regular interval and reports the current temperature r
 ## Functions
 
 - `setTempSamplePeriod(int)` - Configure delay (in seconds) between publishing the `FridgeTemperature` event (*Default:* 300)
-- `setTempAlarmThreshold(float)` -  Configure the temperature threshold (in F) that will publish the `FridgeTempAlarm` event (*Default:* 39.0)
+- `setTempAlarmThreshold(float)` -  Configure the temperature threshold (in F) that will publish the `FridgeTempAlarm` event (*Default:* 40.0)
 - `setTempAlarmDelay(int)` - Configure the length of time (in seconds) the fridge temperature must remain above the threshold before publishing the `FridgeTempAlarm` event (*Default:* 300)
 - `setLightLevelThreshold(int)` - Configure light level threshold (voltage reading between 0-4095) that determines if the fridge door is open (higher value means more sensitive) (*Default:* 1500)
 - `setDoorBuzzerDelay(int)` - Configure the length of time (in seconds) the fridge door must remain *continously* open before the buzzer alarm is triggerd (*Default:* 240)

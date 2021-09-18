@@ -5,7 +5,7 @@ const unsigned int INIT_TEMPERATURE_SAMPLE_PERIOD_S = 300;
 unsigned int TEMPERATURE_SAMPLE_PERIOD_S = INIT_TEMPERATURE_SAMPLE_PERIOD_S;
 int setTempSamplePeriod(String input) { TEMPERATURE_SAMPLE_PERIOD_S = input.toInt(); return 0; }
 
-const double INIT_TEMPERATURE_ALARM_THRESHOLD = 39.0;
+const double INIT_TEMPERATURE_ALARM_THRESHOLD = 40.0;
 double TEMPERATURE_ALARM_THRESHOLD = INIT_TEMPERATURE_ALARM_THRESHOLD;
 int setTempAlarmThreshold(String input) { TEMPERATURE_ALARM_THRESHOLD = input.toFloat(); return 0; }
 
@@ -209,7 +209,7 @@ void loop()
             Particle.publish("FridgeTempAlarm", String::format("%.2lf", temperature), 60, PRIVATE);
         }
     }
-    else if (temperature <= TEMPERATURE_ALARM_THRESHOLD - 2.0)
+    else if (temperature <= TEMPERATURE_ALARM_THRESHOLD)
     {
         lastTempAlarmThresholdTime = (unsigned int)-1;
     }

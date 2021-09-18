@@ -1,27 +1,28 @@
 #include <photon-thermistor.h> // https://github.com/kegnet/photon-thermistor
 #include <clickButton.h> // https://github.com/pkourany/clickButton
 
-const unsigned int INIT_TEMPERATURE_SAMPLE_PERIOD_S = 300;
+const unsigned int INIT_TEMPERATURE_SAMPLE_PERIOD_S     = 300; // seconds
+const double INIT_TEMPERATURE_ALARM_THRESHOLD           = 0.0; // F
+const unsigned int INIT_TEMPERATURE_ALARM_DELAY_S       = 300; // seconds
+const int32_t INIT_PHOTO_RESISTOR_OPEN_THRESHOLD        = 4000.0; // photo-resistor dependent
+const unsigned int INIT_DOOR_OPEN_BUZZER_DELAY_S        = 240; // seconds
+const unsigned int INIT_DOOR_OPEN_NOTIFICATION_DELAY_S  = 180; // seconds
+
 unsigned int TEMPERATURE_SAMPLE_PERIOD_S = INIT_TEMPERATURE_SAMPLE_PERIOD_S;
 int setTempSamplePeriod(String input) { TEMPERATURE_SAMPLE_PERIOD_S = input.toInt(); return 0; }
 
-const double INIT_TEMPERATURE_ALARM_THRESHOLD = 40.0;
 double TEMPERATURE_ALARM_THRESHOLD = INIT_TEMPERATURE_ALARM_THRESHOLD;
 int setTempAlarmThreshold(String input) { TEMPERATURE_ALARM_THRESHOLD = input.toFloat(); return 0; }
 
-const unsigned int INIT_TEMPERATURE_ALARM_DELAY_S = 300;
 unsigned int TEMPERATURE_ALARM_DELAY_S = INIT_TEMPERATURE_ALARM_DELAY_S;
 int setTempAlarmDelay(String input) { TEMPERATURE_ALARM_DELAY_S = input.toInt(); return 0; }
 
-const int32_t INIT_PHOTO_RESISTOR_OPEN_THRESHOLD = 1500.0;
 int32_t PHOTO_RESISTOR_OPEN_THRESHOLD = INIT_PHOTO_RESISTOR_OPEN_THRESHOLD;
 int setLightLevelThreshold(String input) { PHOTO_RESISTOR_OPEN_THRESHOLD = input.toInt(); return 0; }
 
-const unsigned int INIT_DOOR_OPEN_BUZZER_DELAY_S = 240;
 unsigned int DOOR_OPEN_BUZZER_DELAY_S = INIT_DOOR_OPEN_BUZZER_DELAY_S;
 int setDoorBuzzerDelay(String input) { DOOR_OPEN_BUZZER_DELAY_S = input.toInt(); return 0; }
 
-const unsigned int INIT_DOOR_OPEN_NOTIFICATION_DELAY_S = 180;
 unsigned int DOOR_OPEN_NOTIFICATION_DELAY_S = INIT_DOOR_OPEN_NOTIFICATION_DELAY_S;
 int setDoorNotificationDelay(String input) { DOOR_OPEN_NOTIFICATION_DELAY_S = input.toInt(); return 0; }
 
@@ -137,7 +138,7 @@ void loop()
         lastDoorChangeTime = millis();
     }
 
-    // Toggle buzzer when fridge door has been left open for too long
+    // Toggle buzzer when door has been left open for too long
     if (doorOpen and millis() >= (lastDoorChangeTime + 1000 * DOOR_OPEN_BUZZER_DELAY_S))
     {
         if (!doorBuzzer)
@@ -159,7 +160,7 @@ void loop()
         digitalWrite(BUZZER_PIN, LOW);
     }
 
-    // Send notification when fridge door has been left open for too long
+    // Send notification when door has been left open for too long
     if (doorOpen and millis() >= (lastDoorChangeTime + 1000 * DOOR_OPEN_NOTIFICATION_DELAY_S))
     {
         if (!doorNotification)
@@ -167,7 +168,7 @@ void loop()
             doorNotification = true;
             lastDoorNotificationTime = millis();
             doorOpenSeconds = (millis() - lastDoorChangeTime) / 1000;
-            Particle.publish("FridgeDoorAlarm", String(doorOpenSeconds), 60, PRIVATE);
+            Particle.publish("DoorAlarm", String(doorOpenSeconds), 60, PRIVATE);
         }
     }
     else if (doorNotification)
@@ -190,10 +191,10 @@ void loop()
     if (millis() >= (lastPublishTempTime + 1000 * TEMPERATURE_SAMPLE_PERIOD_S))
     {
         lastPublishTempTime = millis();
-        Particle.publish("FridgeTemperature", String(temperature), PRIVATE);
+        Particle.publish("Temperature", String(temperature), PRIVATE);
     }
 
-    // Alarm if fridge temp crosses threshold
+    // Alarm if temp crosses threshold
     if (temperature > TEMPERATURE_ALARM_THRESHOLD)
     {
         // If this is the first time the threshold has been crossed, start a delay timer
@@ -206,7 +207,7 @@ void loop()
         {
             lastTempAlarmThresholdTime = (unsigned int)-1; // Alarm should not trigger more periodically than the delay
             lastTempAlarm = (temperature > lastTempAlarm ? temperature : lastTempAlarm);
-            Particle.publish("FridgeTempAlarm", String::format("%.2lf", temperature), 60, PRIVATE);
+            Particle.publish("TempAlarm", String::format("%.2lf", temperature), 60, PRIVATE);
         }
     }
     else if (temperature <= TEMPERATURE_ALARM_THRESHOLD)
